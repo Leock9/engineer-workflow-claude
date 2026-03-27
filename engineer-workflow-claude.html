@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>engineer-workflow-claude</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111318;
+    --surface2: #1a1d24;
+    --border: #1e2330;
+    --accent: #00d4aa;
+    --accent2: #7c6af7;
+    --accent3: #f5a623;
+    --text: #e8eaf0;
+    --muted: #5a6175;
+    --haiku: #f5a623;
+    --sonnet: #7c6af7;
+    --gate: #00d4aa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ─── SLIDES ─── */
+  .deck {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateY(20px);
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+  }
+
+  /* ─── GRID BG ─── */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ─── NAV ─── */
+  .nav {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+    background: rgba(17,19,24,0.9);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 10px 20px;
+    backdrop-filter: blur(12px);
+  }
+
+  .nav button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    transition: color 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .nav button:hover { color: var(--accent); }
+
+  .nav .counter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .nav .dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .dot.active { background: var(--accent); transform: scale(1.4); }
+
+  /* ─── SLIDE COUNTER TOP ─── */
+  .slide-num {
+    position: fixed;
+    top: 28px;
+    right: 40px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    z-index: 100;
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: clamp(42px, 6vw, 72px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2px;
+  }
+
+  h2 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 40px;
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 600px;
+  }
+
+  /* ─── HIGHLIGHT SPANS ─── */
+  .hl { color: var(--accent); }
+  .hl2 { color: var(--accent2); }
+  .hl3 { color: var(--accent3); }
+
+  /* ─── CODE BLOCK ─── */
+  .code-block {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    color: var(--accent);
+    line-height: 1.8;
+  }
+
+  /* ─── SLIDE 1: TITLE ─── */
+  #s1 { text-align: center; }
+
+  #s1 .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 40px;
+    display: inline-block;
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,170,0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(0,212,170,0); }
+  }
+
+  #s1 h1 span.block {
+    display: block;
+  }
+
+  #s1 .tagline {
+    margin-top: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.8;
+  }
+
+  #s1 .gradient-bar {
+    width: 200px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    margin: 28px auto;
+    border-radius: 2px;
+  }
+
+  /* ─── SLIDE 2: PROBLEMA ─── */
+  #s2 .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    right: 0; height: 2px;
+  }
+
+  .card.red::after { background: #ff4d6d; }
+  .card.green::after { background: var(--accent); }
+
+  .card .card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .card.red .card-label { color: #ff4d6d; }
+  .card.green .card-label { color: var(--accent); }
+
+  .card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card ul li {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .card.red ul li::before { content: '✗'; position: absolute; left: 0; color: #ff4d6d; }
+  .card.green ul li::before { content: '✓'; position: absolute; left: 0; color: var(--accent); }
+
+  /* ─── SLIDE 3: ARQUITETURA ─── */
+  #s3 .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .arch-node {
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid;
+  }
+
+  .arch-node.user {
+    background: rgba(124,106,247,0.15);
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .arch-node.orch {
+    background: rgba(0,212,170,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+    padding: 12px 28px;
+    font-size: 14px;
+  }
+
+  .arch-group {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--surface);
+  }
+
+  .arch-group-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .arch-group.haiku { border-color: rgba(245,166,35,0.3); }
+  .arch-group.haiku .arch-group-label { color: var(--haiku); }
+  .arch-group.sonnet { border-color: rgba(124,106,247,0.3); }
+  .arch-group.sonnet .arch-group-label { color: var(--sonnet); }
+
+  .agent-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .pill.haiku {
+    border-color: rgba(245,166,35,0.4);
+    color: var(--haiku);
+    background: rgba(245,166,35,0.08);
+  }
+
+  .pill.sonnet {
+    border-color: rgba(124,106,247,0.4);
+    color: var(--sonnet);
+    background: rgba(124,106,247,0.08);
+  }
+
+  .arrow {
+    color: var(--muted);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ─── SLIDE 4: COMANDOS ─── */
+  #s4 .commands-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .cmd-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+
+  .cmd-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .cmd-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .cmd-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .cmd-tag {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .cmd-tag.main { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .cmd-tag.prep { background: rgba(124,106,247,0.15); color: var(--accent2); }
+  .cmd-tag.util { background: rgba(245,166,35,0.15); color: var(--accent3); }
+
+  /* ─── SLIDE 5: COORDINATOR FLOW ─── */
+  #s5 .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 16px 0;
+    position: relative;
+  }
+
+  .flow-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 52px;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--border), transparent);
+  }
+
+  .step-num {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+
+  .step-num.normal { border-color: var(--border); color: var(--muted); }
+  .step-num.stop-gate { border-color: var(--accent3); color: var(--accent3); background: rgba(245,166,35,0.1); }
+  .step-num.block-gate { border-color: #ff4d6d; color: #ff4d6d; background: rgba(255,77,109,0.1); }
+  .step-num.ok { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+
+  .step-content h4 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .step-content p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .gate-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .gate-badge.stop { background: rgba(245,166,35,0.2); color: var(--accent3); }
+  .gate-badge.block { background: rgba(255,77,109,0.2); color: #ff4d6d; }
+
+  /* ─── SLIDE 6: AGENTES ─── */
+  #s6 .agents-table {
+    width: 100%;
+    max-width: 900px;
+    border-collapse: collapse;
+  }
+
+  #s6 .agents-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #s6 .agents-table td {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(30,35,48,0.5);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  #s6 .agents-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge-model {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .badge-model.haiku { background: rgba(245,166,35,0.15); color: var(--haiku); border: 1px solid rgba(245,166,35,0.3); }
+  .badge-model.sonnet { background: rgba(124,106,247,0.15); color: var(--sonnet); border: 1px solid rgba(124,106,247,0.3); }
+
+  /* ─── SLIDE 7: PRINCÍPIOS ─── */
+  #s7 .principles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  .principle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .principle::before {
+    content: attr(data-num);
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.03);
+    line-height: 1;
+  }
+
+  .principle h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .principle p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ─── SLIDE 8: QUICK START ─── */
+  #s8 .qs-flow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  .qs-cmd {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .qs-arrow {
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  .install-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.9;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  .install-block .comment { color: var(--muted); }
+  .install-block .cmd-text { color: var(--accent); }
+
+  /* ─── SLIDE 9: FECHAMENTO ─── */
+  #s9 { text-align: center; }
+
+  #s9 h1 {
+    font-size: clamp(36px, 5vw, 60px);
+    margin-bottom: 20px;
+  }
+
+  .big-stat {
+    display: flex;
+    gap: 60px;
+    justify-content: center;
+    margin: 40px 0;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-num {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  #s9 .repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 10px 24px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-top: 20px;
+  }
+
+  /* ─── KEYBOARD HINT ─── */
+  .kbd-hint {
+    position: fixed;
+    top: 28px;
+    left: 40px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    z-index: 100;
+  }
+
+  kbd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  /* ─── SLIDE TOKEN ECONOMY ─── */
+  .token-compare {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+    max-width: 920px;
+  }
+
+  .token-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .token-col-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .token-col-label.bad { color: #ff4d6d; }
+  .token-col-label.good { color: var(--accent); }
+
+  .token-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .token-item-title {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .token-item-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .token-bar {
+    height: 6px;
+    border-radius: 3px;
+    margin-top: 8px;
+  }
+
+  .token-bar.high { background: linear-gradient(90deg, #ff4d6d, #ff8fa3); width: 95%; }
+  .token-bar.mid  { background: linear-gradient(90deg, #f5a623, #ffd580); width: 55%; }
+  .token-bar.low  { background: linear-gradient(90deg, var(--accent), #00ffcc); width: 28%; }
+
+  .token-vs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--muted);
+    padding-top: 40px;
+  }
+
+  /* ─── BOAS PRÁTICAS ─── */
+  .bp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 880px;
+  }
+
+  .bp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+
+  .bp-card:hover { border-color: rgba(0,212,170,0.3); }
+
+  .bp-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .bp-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .bp-card p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .bp-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0,212,170,0.1);
+    color: var(--accent);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide.active > * {
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .slide.active > *:nth-child(1) { animation-delay: 0.05s; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.12s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.19s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.26s; }
+
+  /* ─── GLOW ACCENT SHAPES ─── */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .slide > * { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<div class="kbd-hint"><kbd>←</kbd> <kbd>→</kbd> navegar</div>
+<div class="slide-num" id="slideNum">01 / 09</div>
+
+<div class="deck" id="deck">
+
+  <!-- ─── SLIDE 1: TITLE ─── -->
+  <div class="slide active" id="s1">
+    <div class="glow-orb" style="width:400px;height:400px;background:rgba(0,212,170,0.06);top:-100px;right:-80px;"></div>
+    <div class="glow-orb" style="width:300px;height:300px;background:rgba(124,106,247,0.06);bottom:-80px;left:-60px;"></div>
+    <div class="logo">engineer-workflow-claude</div>
+    <h1>
+      <span class="block">Código com</span>
+      <span class="hl">disciplina.</span>
+      <span class="block hl2">Agentes com</span>
+      <span class="block">propósito.</span>
+    </h1>
+    <div class="gradient-bar"></div>
+    <p class="tagline">
+      Um pipeline multi-agente e spec-first sobre o Claude Code —<br>
+      transformando linguagem natural em código revisado e confiável.
+    </p>
+  </div>
+
+  <!-- ─── SLIDE 2: PROBLEMA ─── -->
+  <div class="slide" id="s2">
+    <div class="eyebrow">o problema</div>
+    <h2>Um modelo. <span class="hl">Responsabilidades demais.</span></h2>
+    <div class="two-col">
+      <div class="card red">
+        <div class="card-label">sem estrutura</div>
+        <ul>
+          <li>Detecção, design, implementação e revisão no mesmo prompt</li>
+          <li>Contexto enorme, foco zero</li>
+          <li>Sem gate: o código errado é escrito primeiro</li>
+          <li>Review pós-fato, se rolar</li>
+          <li>Decisão arquitetural invisível</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <div class="card-label">com o workflow</div>
+        <ul>
+          <li>Cada agente tem uma função específica e contrato definido</li>
+          <li>Contexto condensado ≤ 20 linhas por repasse</li>
+          <li>Spec aprovada antes de qualquer linha de código</li>
+          <li>4 revisores em paralelo, consolidados</li>
+          <li>Humano no loop nas decisões críticas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 3: ARQUITETURA ─── -->
+  <div class="slide" id="s3">
+    <div class="eyebrow">arquitetura</div>
+    <h2>12 agentes. <span class="hl2">6 comandos.</span></h2>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-node user">👤 Dev</div>
+        <div class="arrow">→</div>
+        <div class="arch-node orch">⚙ Orchestrator</div>
+      </div>
+      <div class="arch-row" style="align-items:flex-start; gap: 32px; margin-top:8px;">
+        <div class="arch-group haiku">
+          <div class="arch-group-label">⚡ Haiku — Estrutural / Rápido</div>
+          <div class="agent-pills">
+            <span class="pill haiku">Detector</span>
+            <span class="pill haiku">LogClassifier</span>
+            <span class="pill haiku">ReviewCoordinator</span>
+          </div>
+        </div>
+        <div class="arch-group sonnet">
+          <div class="arch-group-label">🧠 Sonnet — Análise / Código</div>
+          <div class="agent-pills">
+            <span class="pill sonnet">Architect</span>
+            <span class="pill sonnet">Implementer</span>
+            <span class="pill sonnet">Reviewer</span>
+            <span class="pill sonnet">PerformanceReviewer</span>
+            <span class="pill sonnet">TestReviewer</span>
+            <span class="pill sonnet">SpecReviewer</span>
+            <span class="pill sonnet">SpecWriter</span>
+            <span class="pill sonnet">Tracer</span>
+            <span class="pill sonnet">Explainer</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-row" style="margin-top:8px;">
+        <div class="arch-node" style="border-color:var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px;">
+          📦 Resultado ao Usuário
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 4: COMANDOS ─── -->
+  <div class="slide" id="s4">
+    <div class="eyebrow">comandos</div>
+    <h2>6 comandos. <span class="hl">Cada um tem seu papel.</span></h2>
+    <div class="commands-grid">
+      <div class="cmd-card">
+        <div class="cmd-name">/coordinator</div>
+        <div class="cmd-desc">Pipeline completo: detecção → arquitetura → spec → implementação → revisão paralela</div>
+        <span class="cmd-tag main">comando principal</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/refinement</div>
+        <div class="cmd-desc">Gera spec formal e plano de implementação antes de escrever qualquer código</div>
+        <span class="cmd-tag prep">pré-código</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/review</div>
+        <div class="cmd-desc">5 revisores em paralelo sobre diff ou arquivos existentes, relatório unificado</div>
+        <span class="cmd-tag util">qualidade</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/investigate</div>
+        <div class="cmd-desc">Reconstrói a call chain de um log ou stack trace com veredito diagnóstico</div>
+        <span class="cmd-tag util">debug</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/diff</div>
+        <div class="cmd-desc">Gera diff entre a branch atual e a base, salva em .claude/diff.md</div>
+        <span class="cmd-tag util">git</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/commit</div>
+        <div class="cmd-desc">Mensagem de commit semântica gerada e aprovada antes do commit ser criado</div>
+        <span class="cmd-tag util">git</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 5: COORDINATOR FLOW ─── -->
+  <div class="slide" id="s5">
+    <div class="eyebrow">/coordinator — fluxo</div>
+    <h2>Spec aprovada <span class="hl">antes</span> do código.</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num normal">1</div>
+        <div class="step-content">
+          <h4>Detecção <span style="color:var(--haiku);font-size:11px;">Haiku</span></h4>
+          <p>Detector identifica linguagem, runtime, bibliotecas e convenções do projeto</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num stop-gate">2</div>
+        <div class="step-content">
+          <h4>Arquitetura <span class="gate-badge stop">STOP</span></h4>
+          <p>Architect avalia opções com tradeoffs → <strong>dev aprova antes de continuar</strong></p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num block-gate">3</div>
+        <div class="step-content">
+          <h4>Gate da Spec <span class="gate-badge block">BLOQUEIO</span></h4>
+          <p>Pipeline travado se não houver spec aprovada — não opcional</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num normal">4</div>
+        <div class="step-content">
+          <h4>Implementação <span style="color:var(--sonnet);font-size:11px;">Sonnet</span></h4>
+          <p>Implementer escreve código de acordo com spec + decisão arquitetural</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num ok">5</div>
+        <div class="step-content">
+          <h4>Revisão Paralela → Consolidação</h4>
+          <p>Reviewer + PerformanceReviewer + TestReviewer + SpecReviewer em paralelo → ReviewCoordinator unifica (máx. 2 ciclos)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 6: AGENTES ─── -->
+  <div class="slide" id="s6">
+    <div class="eyebrow">referência de agentes</div>
+    <h2>Separação <span class="hl2">de responsabilidades.</span></h2>
+    <table class="agents-table">
+      <thead>
+        <tr>
+          <th>Agente</th>
+          <th>Modelo</th>
+          <th>Responsabilidade</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Detector</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Identifica linguagem, runtime e convenções</td></tr>
+        <tr><td>Architect</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Tradeoffs arquiteturais — design, review, trace</td></tr>
+        <tr><td>SpecWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Especificação formal em Gherkin</td></tr>
+        <tr><td>Implementer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Código conforme spec aprovada</td></tr>
+        <tr><td>Reviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">DRY, KISS, Clean Code</td></tr>
+        <tr><td>PerformanceReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">O(n²), N+1, memory leaks</td></tr>
+        <tr><td>TestReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Cobertura, ghost tests, acoplamento</td></tr>
+        <tr><td>SpecReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Conformidade da implementação com a spec</td></tr>
+        <tr><td>ReviewCoordinator</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Consolida 4–5 revisores, deduplica</td></tr>
+        <tr><td>Tracer + Explainer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Call chain + veredito diagnóstico</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── SLIDE 7: PRINCÍPIOS ─── -->
+  <div class="slide" id="s7">
+    <div class="eyebrow">princípios de design</div>
+    <h2>Rigor por <span class="hl">design,</span> não por acidente.</h2>
+    <div class="principles">
+      <div class="principle" data-num="01">
+        <h4>Spec-first</h4>
+        <p>O /coordinator é bloqueado sem spec aprovada. O gate não é opcional — evita construir a coisa errada.</p>
+      </div>
+      <div class="principle" data-num="02">
+        <h4>Humano no loop</h4>
+        <p>Arquitetura e spec exigem sign-off explícito do dev. Nenhuma decisão crítica é tomada sem aprovação.</p>
+      </div>
+      <div class="principle" data-num="03">
+        <h4>Disciplina de custo</h4>
+        <p>Nenhum agente recebe output bruto. Cada repasse é condensado em ≤ 20 linhas. Independentes rodam em paralelo.</p>
+      </div>
+      <div class="principle" data-num="04">
+        <h4>Crítico, não complacente</h4>
+        <p>"Funciona" não é motivo para omitir um finding. Os agentes sinalizam problemas reais, inclusive em código produtivo.</p>
+      </div>
+      <div class="principle" data-num="05">
+        <h4>Separação de responsabilidades</h4>
+        <p>Implementer não revisa. Reviewer não implementa. Architect não escreve código. Cada um no seu papel.</p>
+      </div>
+      <div class="principle" data-num="06">
+        <h4>Não é um framework</h4>
+        <p>É uma camada de processo. Não substitui o dev — traz ordem, rigor e consistência ao uso do Claude Code.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 8: QUICK START ─── -->
+  <div class="slide" id="s8">
+    <div class="eyebrow">quick start</div>
+    <h2>Fluxo <span class="hl">recomendado.</span></h2>
+    <div class="qs-flow">
+      <div class="qs-cmd">/refinement</div>
+      <div class="qs-arrow">→</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">revisar spec</div>
+      <div class="qs-arrow">→</div>
+      <div class="qs-cmd">/coordinator</div>
+      <div class="qs-arrow">→</div>
+      <div class="qs-cmd">/commit</div>
+    </div>
+    <div class="install-block">
+      <span class="comment"># dentro do diretório de qualquer projeto</span><br>
+      <span class="cmd-text">curl</span> -sO https://raw.githubusercontent.com/Leock9/flow-copilot/main/.claude/setup-claude.sh<br>
+      <span class="cmd-text">bash</span> setup-claude.sh<br>
+      <br>
+      <span class="comment"># o script instala CLAUDE.md, agents/ e commands/ em .claude/</span>
+    </div>
+    <div style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;">
+      Requisitos: Claude Code CLI instalado · permissões da tool <span style="color:var(--accent)">Task</span> habilitadas
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 9: ECONOMIA DE TOKENS ─── -->
+  <div class="slide" id="s9">
+    <div class="eyebrow">economia de tokens — estimativas aproximadas</div>
+    <h2>Contexto <span class="hl">cirúrgico.</span> Custo <span class="hl3">controlado.</span></h2>
+    <div class="token-compare">
+
+      <div class="token-col">
+        <div class="token-col-label bad">✗ uso tradicional</div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:#ff4d6d;">Contexto inteiro em todo prompt</div>
+          <div class="token-item-desc">Prompt monolítico com codebase + histórico + instruções: <strong style="color:#ff8fa3;">~8.000–20.000 tokens</strong> por chamada</div>
+          <div class="token-bar high"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:#ff4d6d;">Output bruto repassado entre etapas</div>
+          <div class="token-item-desc">Resposta completa vira input do próximo prompt — contexto acumula <strong style="color:#ff8fa3;">+300–600 tokens por handoff</strong></div>
+          <div class="token-bar high"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:#ff4d6d;">Modelo pesado para tudo</div>
+          <div class="token-item-desc">Sonnet para classificar manifests e deduplgar findings: <strong style="color:#ff8fa3;">custo até 5× maior</strong> que Haiku nas mesmas tarefas</div>
+          <div class="token-bar mid"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:#ff4d6d;">Revisão em série</div>
+          <div class="token-item-desc">4 revisores sequenciais: <strong style="color:#ff8fa3;">latência ~4× maior,</strong> cada um carregando o contexto do anterior</div>
+          <div class="token-bar mid"></div>
+        </div>
+      </div>
+
+      <div class="token-vs">vs</div>
+
+      <div class="token-col">
+        <div class="token-col-label good">✓ com o workflow</div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:var(--accent);">Repasse condensado ≤ 20 linhas</div>
+          <div class="token-item-desc">Contrato de entrada por agente: <strong style="color:var(--accent);">~400–600 tokens</strong> — redução de <strong style="color:var(--accent);">~90% por handoff</strong></div>
+          <div class="token-bar low"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:var(--accent);">Síntese obrigatória entre etapas</div>
+          <div class="token-item-desc">Contexto não acumula. Cada agente começa limpo — economia estimada de <strong style="color:var(--accent);">2.000–8.000 tokens</strong> por ciclo completo</div>
+          <div class="token-bar low"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:var(--accent);">Haiku onde Haiku basta</div>
+          <div class="token-item-desc">3 de 12 agentes rodam em Haiku — <strong style="color:var(--accent);">~60–80% de redução de custo</strong> nessas chamadas específicas</div>
+          <div class="token-bar low"></div>
+        </div>
+        <div class="token-item">
+          <div class="token-item-title" style="color:var(--accent);">Revisores em paralelo</div>
+          <div class="token-item-desc">Mesmo volume de tokens, latência de 1 revisor — <strong style="color:var(--accent);">~75% menos tempo de espera</strong> na etapa de revisão</div>
+          <div class="token-bar low"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 10: BOAS PRÁTICAS ─── -->
+  <div class="slide" id="s10">
+    <div class="eyebrow">boas práticas adotadas</div>
+    <h2>Disciplina de <span class="hl2">contexto.</span></h2>
+    <div class="bp-grid">
+      <div class="bp-card">
+        <div class="bp-icon">✂️</div>
+        <div>
+          <h4>Contratos de entrada definidos</h4>
+          <p>Cada agente tem um contrato explícito de input. Nenhum agente recebe mais do que precisa para cumprir sua função.</p>
+          <span class="bp-tag">zero over-fetching</span>
+        </div>
+      </div>
+      <div class="bp-card">
+        <div class="bp-icon">⚡</div>
+        <div>
+          <h4>Haiku para o estrutural</h4>
+          <p>Detector, LogClassifier e ReviewCoordinator usam Haiku — tarefas de classificação e síntese não precisam de Sonnet.</p>
+          <span class="bp-tag">model routing</span>
+        </div>
+      </div>
+      <div class="bp-card">
+        <div class="bp-icon">🔀</div>
+        <div>
+          <h4>Paralelismo onde não há dependência</h4>
+          <p>Revisores sem dependência entre si rodam em paralelo. Detector + Architect no /investigate também. Latência cai, custo não escala linearmente.</p>
+          <span class="bp-tag">parallel execution</span>
+        </div>
+      </div>
+      <div class="bp-card">
+        <div class="bp-icon">🗜️</div>
+        <div>
+          <h4>Condensação obrigatória entre etapas</h4>
+          <p>O output de cada etapa é reduzido a ≤ 20 linhas antes de ser repassado. Nenhum agente acumula o histórico completo.</p>
+          <span class="bp-tag">context compression</span>
+        </div>
+      </div>
+      <div class="bp-card">
+        <div class="bp-icon">🎯</div>
+        <div>
+          <h4>Um agente, uma responsabilidade</h4>
+          <p>Evita re-processar informações já resolvidas. O Implementer não reanalisa o stack — o Detector já fez isso.</p>
+          <span class="bp-tag">single responsibility</span>
+        </div>
+      </div>
+      <div class="bp-card">
+        <div class="bp-icon">🚫</div>
+        <div>
+          <h4>Gates que evitam retrabalho caro</h4>
+          <p>Implementar sem spec aprovada é o maior desperdício de tokens. O gate bloqueia antes que o erro se propague por todo o pipeline.</p>
+          <span class="bp-tag">fail fast</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 11: FECHAMENTO ─── -->
+  <div class="slide" id="s11">
+    <div class="glow-orb" style="width:500px;height:500px;background:rgba(0,212,170,0.05);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div class="eyebrow">resumo</div>
+    <h1>Escreva <span class="hl">menos.</span><br>Revise <span class="hl2">mais.</span><br>Construa <span class="hl3">certo.</span></h1>
+    <div class="big-stat">
+      <div class="stat">
+        <div class="stat-num hl">12</div>
+        <div class="stat-label">agentes</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num hl2">6</div>
+        <div class="stat-label">comandos</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num hl3">2</div>
+        <div class="stat-label">gates humanos</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--text)">∞</div>
+        <div class="stat-label">menos retrabalho</div>
+      </div>
+    </div>
+    <div class="repo">github.com/Leock9/flow-copilot</div>
+  </div>
+
+</div>
+
+<!-- ─── NAV ─── -->
+<div class="nav">
+  <button id="prevBtn">←</button>
+  <div class="dots" id="dots"></div>
+  <button id="nextBtn">→</button>
+  <div class="counter" id="counter">1 / 11</div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.getElementById('dots');
+  const counter = document.getElementById('counter');
+  const slideNum = document.getElementById('slideNum');
+  let current = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => go(i);
+    dots.appendChild(d);
+  });
+
+  function go(n) {
+    slides[current].classList.remove('active');
+    dots.children[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, slides.length - 1));
+    slides[current].classList.add('active');
+    dots.children[current].classList.add('active');
+    const label = String(current + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+    counter.textContent = (current + 1) + ' / ' + slides.length;
+    slideNum.textContent = label;
+  }
+
+  document.getElementById('prevBtn').onclick = () => go(current - 1);
+  document.getElementById('nextBtn').onclick = () => go(current + 1);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(current + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(current - 1);
+  });
+</script>
+</body>
+</html>
