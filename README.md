@@ -190,6 +190,44 @@ Reconstrói o caminho de execução que produziu uma entrada de log ou exceção
 
 ---
 
+## Observabilidade — Rastreamento de Tokens
+
+### O que é um hook?
+
+Um **hook** é um script executado automaticamente pelo Claude Code em resposta a eventos do ciclo de vida — sem intervenção manual. É configurado em `settings.local.json` e dispara sempre que o evento correspondente ocorre.
+
+| Evento | Quando dispara |
+|--------|---------------|
+| `PostToolUse` | Após cada tool terminar |
+| `PreToolUse` | Antes de executar uma tool |
+| `Stop` | Quando Claude termina de responder |
+| `Notification` | Quando Claude emite uma notificação |
+
+### Hook de uso de tokens
+
+O workflow registra um hook `PostToolUse` com matcher `Task` que grava automaticamente em `.claude/usage.log` após cada subagente terminar:
+
+```
+2026-03-26T21:00:01Z | coordinator | Reviewer        | in:4200 | out:890  | cost:$0.0042
+2026-03-26T21:00:01Z | coordinator | PerfReviewer    | in:3800 | out:720  | cost:$0.0038
+2026-03-26T21:00:02Z | coordinator | TestReviewer    | in:4100 | out:650  | cost:$0.0039
+2026-03-26T21:00:02Z | coordinator | SpecReviewer    | in:3900 | out:610  | cost:$0.0037
+```
+
+### `/usage` — Análise de gargalos
+
+Após acumular execuções no log, rode `/usage` para obter:
+
+- **Consumo por agente** — tabela ordenada por custo total (invocações, tokens entrada/saída, custo médio)
+- **Consumo por comando** — agrupado por `/coordinator`, `/review`, `/investigate`
+- **Diagnóstico de gargalos:**
+  - Tokens de entrada altos → contexto inflado sendo repassado (violação da regra ≤ 20 linhas)
+  - Output excessivo → agente gerando mais do que o necessário para o próximo passo
+  - Muitas chamadas ao Implementer → spec com bloqueadores recorrentes
+- **Recomendação principal** — uma linha direta com o gargalo e a ação sugerida
+
+---
+
 ## Quick Start
 
 ```bash

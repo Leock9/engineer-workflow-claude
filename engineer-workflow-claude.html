@@ -832,6 +832,103 @@
     color: var(--accent);
   }
 
+  /* ─── SLIDE HOOKS ─── */
+  .hook-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    width: 100%;
+    max-width: 920px;
+    align-items: start;
+  }
+
+  .hook-side h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .hook-events {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .hook-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: border-color 0.2s;
+  }
+
+  .hook-event.active-hook { border-color: rgba(0,212,170,0.4); }
+
+  .hook-event-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 120px;
+    flex-shrink: 0;
+  }
+
+  .hook-event-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .hook-log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.9;
+    overflow: hidden;
+  }
+
+  .hook-log .log-line { color: var(--muted); }
+  .hook-log .log-ts { color: var(--accent2); }
+  .hook-log .log-agent { color: var(--accent); }
+  .hook-log .log-token { color: var(--haiku); }
+  .hook-log .log-cost { color: var(--accent); }
+
+  .usage-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .usage-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .usage-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .usage-card-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
   /* ─── ANIMATIONS ─── */
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -1234,7 +1331,77 @@
     </div>
   </div>
 
-  <!-- ─── SLIDE 11: FECHAMENTO ─── -->
+  <!-- ─── SLIDE 11: HOOKS & /usage ─── -->
+  <div class="slide" id="s11">
+    <div class="eyebrow">observabilidade — hooks &amp; /usage</div>
+    <h2>Rastreie <span class="hl">cada agente.</span> Identifique <span class="hl3">gargalos.</span></h2>
+    <div class="hook-layout">
+
+      <div class="hook-side">
+        <h3>O que é um hook?</h3>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:16px;">
+          Um script executado automaticamente pelo Claude Code em resposta a eventos do ciclo de vida — sem intervenção manual.
+        </p>
+        <div class="hook-events">
+          <div class="hook-event active-hook">
+            <span class="hook-event-name">PostToolUse ←</span>
+            <span class="hook-event-desc">Após cada Task (subagente) terminar → grava linha em <span style="color:var(--accent)">.claude/usage.log</span></span>
+          </div>
+          <div class="hook-event">
+            <span class="hook-event-name">PreToolUse</span>
+            <span class="hook-event-desc">Antes de executar qualquer tool</span>
+          </div>
+          <div class="hook-event">
+            <span class="hook-event-name">Stop</span>
+            <span class="hook-event-desc">Quando Claude termina de responder</span>
+          </div>
+          <div class="hook-event">
+            <span class="hook-event-name">Notification</span>
+            <span class="hook-event-desc">Quando Claude emite uma notificação</span>
+          </div>
+        </div>
+        <div class="hook-log">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">.claude/usage.log</div>
+          <div class="log-line"><span class="log-ts">2026-03-26T21:00:01Z</span> | coordinator | <span class="log-agent">Reviewer</span> | <span class="log-token">in:4200 out:890</span> | <span class="log-cost">$0.0042</span></div>
+          <div class="log-line"><span class="log-ts">2026-03-26T21:00:01Z</span> | coordinator | <span class="log-agent">PerfReviewer</span> | <span class="log-token">in:3800 out:720</span> | <span class="log-cost">$0.0038</span></div>
+          <div class="log-line"><span class="log-ts">2026-03-26T21:00:02Z</span> | coordinator | <span class="log-agent">TestReviewer</span> | <span class="log-token">in:4100 out:650</span> | <span class="log-cost">$0.0039</span></div>
+          <div class="log-line"><span class="log-ts">2026-03-26T21:00:02Z</span> | coordinator | <span class="log-agent">SpecReviewer</span> | <span class="log-token">in:3900 out:610</span> | <span class="log-cost">$0.0037</span></div>
+        </div>
+      </div>
+
+      <div class="hook-side">
+        <h3>Comando <span style="color:var(--accent)">/usage</span></h3>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:16px;">
+          Lê o log acumulado e produz análise de consumo com diagnóstico de gargalos.
+        </p>
+        <div class="usage-cards">
+          <div class="usage-card">
+            <div class="usage-card-title">Consumo por agente</div>
+            <div class="usage-card-desc">Tabela ordenada por custo total: invocações, tokens entrada/saída, custo médio por execução</div>
+          </div>
+          <div class="usage-card">
+            <div class="usage-card-title">Consumo por comando</div>
+            <div class="usage-card-desc">Agrupado por /coordinator, /review, /investigate — qual pipeline custa mais</div>
+          </div>
+          <div class="usage-card" style="border-color:rgba(0,212,170,0.3);">
+            <div class="usage-card-title" style="color:var(--accent);">Diagnóstico de gargalos</div>
+            <div class="usage-card-desc">
+              <strong style="color:var(--text);">Tokens de entrada altos</strong> → contexto inflado sendo repassado<br>
+              <strong style="color:var(--text);">Output excessivo</strong> → agente gerando mais do que o necessário<br>
+              <strong style="color:var(--text);">Muitas chamadas ao Implementer</strong> → spec com bloqueadores recorrentes
+            </div>
+          </div>
+          <div class="usage-card">
+            <div class="usage-card-title">Recomendação principal</div>
+            <div class="usage-card-desc">Uma linha direta: gargalo identificado + ação sugerida</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── SLIDE 12: FECHAMENTO ─── -->
   <div class="slide" id="s11">
     <div class="glow-orb" style="width:500px;height:500px;background:rgba(0,212,170,0.05);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
     <div class="eyebrow">resumo</div>
