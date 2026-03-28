@@ -5,6 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ---
+<img width="855" height="506" alt="image" src="https://github.com/user-attachments/assets/45ff66c7-87f7-44ba-9267-b22b24e201aa" />
 
 ## Visão Geral
 
