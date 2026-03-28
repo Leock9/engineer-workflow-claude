@@ -1002,7 +1002,7 @@
           <li>Cada agente tem uma função específica e contrato definido</li>
           <li>Contexto condensado ≤ 20 linhas por repasse</li>
           <li>Spec aprovada antes de qualquer linha de código</li>
-          <li>4 revisores em paralelo, consolidados</li>
+          <li>6 revisores em paralelo, consolidados</li>
           <li>Humano no loop nas decisões críticas</li>
         </ul>
       </div>
@@ -1012,7 +1012,7 @@
   <!-- ─── SLIDE 3: ARQUITETURA ─── -->
   <div class="slide" id="s3">
     <div class="eyebrow">arquitetura</div>
-    <h2>12 agentes. <span class="hl2">6 comandos.</span></h2>
+    <h2>15 agentes. <span class="hl2">10 comandos.</span></h2>
     <div class="arch-diagram">
       <div class="arch-row">
         <div class="arch-node user">👤 Dev</div>
@@ -1037,6 +1037,9 @@
             <span class="pill sonnet">PerformanceReviewer</span>
             <span class="pill sonnet">TestReviewer</span>
             <span class="pill sonnet">SpecReviewer</span>
+            <span class="pill sonnet">SecurityReviewer</span>
+            <span class="pill sonnet">ADRWriter</span>
+            <span class="pill sonnet">OpenAPIWriter</span>
             <span class="pill sonnet">SpecWriter</span>
             <span class="pill sonnet">Tracer</span>
             <span class="pill sonnet">Explainer</span>
@@ -1054,7 +1057,7 @@
   <!-- ─── SLIDE 4: COMANDOS ─── -->
   <div class="slide" id="s4">
     <div class="eyebrow">comandos</div>
-    <h2>6 comandos. <span class="hl">Cada um tem seu papel.</span></h2>
+    <h2>10 comandos. <span class="hl">Cada um tem seu papel.</span></h2>
     <div class="commands-grid">
       <div class="cmd-card">
         <div class="cmd-name">/coordinator</div>
@@ -1068,8 +1071,13 @@
       </div>
       <div class="cmd-card">
         <div class="cmd-name">/review</div>
-        <div class="cmd-desc">5 revisores em paralelo sobre diff ou arquivos existentes, relatório unificado</div>
+        <div class="cmd-desc">6 revisores em paralelo sobre diff ou arquivos existentes, relatório unificado</div>
         <span class="cmd-tag util">qualidade</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/security-review</div>
+        <div class="cmd-desc">Revisão focada em segurança: endpoints HTTP, banco de dados e serviços terceiros — OWASP API Top 10 + CWE</div>
+        <span class="cmd-tag util">segurança</span>
       </div>
       <div class="cmd-card">
         <div class="cmd-name">/investigate</div>
@@ -1085,6 +1093,21 @@
         <div class="cmd-name">/commit</div>
         <div class="cmd-desc">Mensagem de commit semântica gerada e aprovada antes do commit ser criado</div>
         <span class="cmd-tag util">git</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/adr</div>
+        <div class="cmd-desc">Persiste a decisão arquitetural como documento versionado em /docs/adr/ com contexto, opções e consequências</div>
+        <span class="cmd-tag prep">documentação</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/spec-status</div>
+        <div class="cmd-desc">Dashboard de todas as specs agrupadas por status — implemented, approved, pending, draft</div>
+        <span class="cmd-tag util">visibilidade</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/openapi</div>
+        <div class="cmd-desc">Gera ou atualiza OpenAPI 3.0 a partir dos handlers HTTP — infere schemas, parâmetros e auth sem tocar no código</div>
+        <span class="cmd-tag util">documentação</span>
       </div>
     </div>
   </div>
@@ -1126,7 +1149,7 @@
         <div class="step-num ok">5</div>
         <div class="step-content">
           <h4>Revisão Paralela → Consolidação</h4>
-          <p>Reviewer + PerformanceReviewer + TestReviewer + SpecReviewer em paralelo → ReviewCoordinator unifica (máx. 2 ciclos)</p>
+          <p>Build + testes antes da revisão (máx. 1 ciclo de correção) → 5 revisores em paralelo → ReviewCoordinator → spec marcada como <strong>implemented</strong> se sem blockers</p>
         </div>
       </div>
     </div>
@@ -1153,7 +1176,10 @@
         <tr><td>PerformanceReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">O(n²), N+1, memory leaks</td></tr>
         <tr><td>TestReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Cobertura, ghost tests, acoplamento</td></tr>
         <tr><td>SpecReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Conformidade da implementação com a spec</td></tr>
-        <tr><td>ReviewCoordinator</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Consolida 4–5 revisores, deduplica</td></tr>
+        <tr><td>SecurityReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">HTTP, DB e third-party — OWASP API Top 10 + CWE</td></tr>
+        <tr><td>ADRWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Gera Architecture Decision Records em /docs/adr/</td></tr>
+        <tr><td>OpenAPIWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Infere OpenAPI 3.0 de handlers HTTP — merge seguro</td></tr>
+        <tr><td>ReviewCoordinator</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Consolida até 6 revisores, deduplica</td></tr>
         <tr><td>Tracer + Explainer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Call chain + veredito diagnóstico</td></tr>
       </tbody>
     </table>
@@ -1262,7 +1288,7 @@
         </div>
         <div class="token-item">
           <div class="token-item-title" style="color:var(--accent);">Haiku onde Haiku basta</div>
-          <div class="token-item-desc">3 de 12 agentes rodam em Haiku — <strong style="color:var(--accent);">~60–80% de redução de custo</strong> nessas chamadas específicas</div>
+          <div class="token-item-desc">3 de 13 agentes rodam em Haiku — <strong style="color:var(--accent);">~60–80% de redução de custo</strong> nessas chamadas específicas</div>
           <div class="token-bar low"></div>
         </div>
         <div class="token-item">
@@ -1366,6 +1392,7 @@
           <div class="log-line"><span class="log-ts">2026-03-26T21:00:01Z</span> | coordinator | <span class="log-agent">PerfReviewer</span> | <span class="log-token">in:3800 out:720</span> | <span class="log-cost">$0.0038</span></div>
           <div class="log-line"><span class="log-ts">2026-03-26T21:00:02Z</span> | coordinator | <span class="log-agent">TestReviewer</span> | <span class="log-token">in:4100 out:650</span> | <span class="log-cost">$0.0039</span></div>
           <div class="log-line"><span class="log-ts">2026-03-26T21:00:02Z</span> | coordinator | <span class="log-agent">SpecReviewer</span> | <span class="log-token">in:3900 out:610</span> | <span class="log-cost">$0.0037</span></div>
+          <div class="log-line"><span class="log-ts">2026-03-26T21:00:02Z</span> | coordinator | <span class="log-agent">SecurityReviewer</span> | <span class="log-token">in:4050 out:740</span> | <span class="log-cost">$0.0040</span></div>
         </div>
       </div>
 
@@ -1408,11 +1435,11 @@
     <h1>Escreva <span class="hl">menos.</span><br>Revise <span class="hl2">mais.</span><br>Construa <span class="hl3">certo.</span></h1>
     <div class="big-stat">
       <div class="stat">
-        <div class="stat-num hl">12</div>
+        <div class="stat-num hl">15</div>
         <div class="stat-label">agentes</div>
       </div>
       <div class="stat">
-        <div class="stat-num hl2">6</div>
+        <div class="stat-num hl2">10</div>
         <div class="stat-label">comandos</div>
       </div>
       <div class="stat">

@@ -18,7 +18,7 @@ Isto não é um framework e não substitui o desenvolvedor. É uma camada de pro
 
 ## Arquitetura
 
-O sistema é composto por **12 subagentes especializados** orquestrados por **6 comandos**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
+O sistema é composto por **15 subagentes especializados** orquestrados por **10 comandos**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
 
 ```mermaid
 graph TD
@@ -35,6 +35,9 @@ graph TD
         PR[PerformanceReviewer]
         TR[TestReviewer]
         SR[SpecReviewer]
+        SecR[SecurityReviewer]
+        AW[ADRWriter]
+        OW[OpenAPIWriter]
         SW[SpecWriter]
         T[Tracer]
         E[Explainer]
@@ -71,21 +74,26 @@ stateDiagram-v2
     GateSpec --> Bloqueado_Rascunho: spec existe mas não aprovada
     GateSpec --> Implementação: spec aprovada ✅
 
-    Implementação --> RevisãoParalela
+    Implementação --> Verificação: build + testes
+    Verificação --> Implementação: falha (máx. 1 ciclo)
+    Verificação --> RevisãoParalela: testes passam
     RevisãoParalela --> ReviewCoordinator: relatório consolidado
     ReviewCoordinator --> Implementação: blockers encontrados (máx. 2 ciclos)
-    ReviewCoordinator --> [*]: sem blockers
+    ReviewCoordinator --> TransiçãoSpec: sem blockers
+    TransiçãoSpec --> [*]: spec → implemented
 ```
 
 | Etapa | Agente(s) | Gate |
 |-------|-----------|------|
 | 1. Detecção | Detector | — |
-| 2. Arquitetura | Architect | **STOP** — dev aprova |
+| 2. Arquitetura + ADR | Architect → ADRWriter | **STOP** — dev aprova; ADR gerado em `/docs/adr/` |
 | 3. Verificação da spec | — | **BLOQUEIO** se não houver spec aprovada |
 | 4. Implementação | Implementer | — |
-| 5. Revisão | Reviewer + PerformanceReviewer + TestReviewer + SpecReviewer *(paralelo)* → ReviewCoordinator | — |
+| 3.5. Build + testes | — | **BLOQUEIO** se falhar (máx. 1 ciclo de correção) |
+| 5. Revisão | Reviewer + PerformanceReviewer + TestReviewer + SpecReviewer + SecurityReviewer *(paralelo)* → ReviewCoordinator | — |
+| 6. Transição de status | — | Spec marcada como `implemented` se sem blockers |
 
-**Saída:** Código implementado + relatório de revisão unificado.
+**Saída:** Código implementado + relatório de revisão unificado + spec `implemented` + ADR da decisão arquitetural.
 
 ---
 
@@ -114,7 +122,7 @@ Revisa código existente ou um diff sem acionar a implementação.
 
 **Fluxo:**
 1. Detecção
-2. Cinco revisores executam **em paralelo**: Reviewer, PerformanceReviewer, Architect (modo review), TestReviewer, SpecReviewer
+2. Seis revisores executam **em paralelo**: Reviewer, PerformanceReviewer, Architect (modo review), TestReviewer, SpecReviewer, SecurityReviewer
 3. ReviewCoordinator consolida em um único relatório deduplicado
 
 **Saída:** Relatório de revisão unificado com findings categorizados por severidade.
@@ -134,6 +142,72 @@ Reconstrói o caminho de execução que produziu uma entrada de log ou exceção
 4. **Explainer** — produz uma narrativa legível e um veredito diagnóstico
 
 **Saída:** Narrativa explicativa + veredito (`PROBLEMA_REAL` / `COMPORTAMENTO_ESPERADO` / `COMPORTAMENTO_SUSPEITO` / `INCONCLUSIVO`).
+
+---
+
+### `/security-review` — Revisão de segurança focada em API
+
+Revisa código com foco exclusivo em segurança, sem acionar os demais revisores.
+
+**Entrada:** Lista de arquivos, diff ou `.claude/diff.md` detectado automaticamente.
+
+**Fluxo:**
+1. Detecção — Detector identifica o stack
+2. SecurityReviewer analisa três vetores de comunicação:
+   - **Endpoints HTTP** — autorização por objeto, autenticação, exposição de dados, mass assignment, rate limiting, CORS/headers
+   - **Banco de dados** — injection, credenciais hardcoded, queries sem parametrização, dados excessivos
+   - **Serviços terceiros** — SSRF, API keys no código, resposta externa sem validação de schema, chamadas sem timeout
+3. Relatório entregue em português com referências OWASP API Security Top 10 (2023) e CWE por finding
+
+**Saída:** Relatório de segurança com findings categorizados por severidade (🔴 Blocker / 🟡 Importante / 🟢 Sugestão) e nível de confiança [HIGH/MEDIUM/LOW].
+
+---
+
+### `/adr` — Architecture Decision Record
+
+Persiste a decisão arquitetural aprovada no Step 2 do `/coordinator` como um documento versionado.
+
+**Entrada:** Contexto da decisão (automático do coordinator, ou manual).
+
+**Fluxo:**
+1. Determina o próximo ID sequencial lendo `/docs/adr/`
+2. ADRWriter gera documento com: contexto, opções consideradas, decisão e consequências
+3. Salva em `/docs/adr/NNNN-slug.md`
+
+**Saída:** `/docs/adr/NNNN-slug.md` com status `accepted`.
+
+---
+
+### `/spec-status` — Dashboard de specs
+
+Exibe o estado atual de todas as specs em `/specs/` sem invocar subagentes.
+
+**Entrada:** Nenhuma.
+
+**Saída:**
+
+```
+✅ Implemented (N)   — specs com código entregue
+🟡 Approved (N)      — aguardando implementação (⚠️ se > 7 dias paradas)
+🔵 Pending approval  — rascunho enviado para aprovação
+📝 Draft (N)         — em elaboração
+```
+
+---
+
+### `/openapi` — Gerador de contrato OpenAPI
+
+Gera ou atualiza uma especificação OpenAPI 3.0 a partir dos handlers HTTP existentes, sem modificar o código-fonte.
+
+**Entrada:** Arquivo(s) de handler/route.
+
+**Fluxo:**
+1. Detector identifica stack e framework HTTP
+2. OpenAPIWriter lê handlers e infere: paths, métodos, schemas de request/response, parâmetros, auth
+3. Se `/docs/openapi.yaml` já existe: merge — preserva descrições manuais, atualiza schemas alterados
+4. Salva em `/docs/openapi.yaml`
+
+**Saída:** `/docs/openapi.yaml` criado ou atualizado + lista de endpoints documentados.
 
 ---
 
@@ -169,7 +243,10 @@ Reconstrói o caminho de execução que produziu uma entrada de log ou exceção
 | **PerformanceReviewer** | Sonnet | Detecta problemas de performance (O(n²), queries N+1, memory leaks, etc.) | Diff/código + resumo do stack | Problemas com níveis de confiança |
 | **TestReviewer** | Sonnet | Valida qualidade dos testes: cobertura, ghost tests, acoplamento comportamento vs. implementação | Testes + código modificado | Análise de cobertura e qualidade |
 | **SpecReviewer** | Sonnet | Valida conformidade da implementação com a spec: cenários, invariantes, contratos | Spec aprovada + código implementado | Relatório de conformidade por elemento da spec |
-| **ReviewCoordinator** | Haiku | Consolida 4–5 outputs de revisores em um único relatório deduplicado | Até 5 outputs de revisores | Relatório unificado com findings priorizados |
+| **SecurityReviewer** | Sonnet | Analisa vulnerabilidades de segurança em três vetores: endpoints HTTP, acesso a banco de dados e integrações com serviços terceiros — agnóstico de stack, baseado no OWASP API Security Top 10 (2023) e CWEs relevantes | Diff/arquivos + resumo do stack | Findings por vetor com severidade, referência OWASP/CWE e remediação |
+| **ADRWriter** | Sonnet | Gera Architecture Decision Records com contexto, opções, decisão e consequências; auto-incrementa o ID lendo `/docs/adr/` | Contexto da decisão + opções + escolha | `/docs/adr/NNNN-slug.md` |
+| **OpenAPIWriter** | Sonnet | Infere paths, schemas, parâmetros e auth a partir de handlers HTTP — agnóstico de framework; merge seguro se spec já existe | Handlers + resumo do stack | YAML OpenAPI 3.0 |
+| **ReviewCoordinator** | Haiku | Consolida até 6 outputs de revisores em um único relatório deduplicado | Até 6 outputs de revisores | Relatório unificado com findings priorizados |
 | **LogClassifier** | Haiku | Extrai estrutura objetiva de logs brutos (tipo de erro, tokens do stack, contexto da requisição) | Log bruto ou stack trace | Log estruturado (≤ 12 linhas) |
 | **Tracer** | Sonnet | Reconstrói a sequência de execução de código que produziu um log | Log classificado + stack + candidatos de entry point | Call chain com nível de confiança |
 | **Explainer** | Sonnet | Traduz um trace técnico em narrativa legível e veredito diagnóstico | Trace + log original + stack | Narrativa + veredito |
@@ -250,8 +327,20 @@ O script de setup copia `CLAUDE.md`, `agents/` e `commands/` para o diretório `
 ```
 
 1. `/refinement` — responda as perguntas abertas, aprove a spec
-2. `/coordinator` — decisão arquitetural → implementação → ciclo de revisão
+2. `/coordinator` — decisão arquitetural → implementação → ciclo de revisão (inclui SecurityReviewer automaticamente)
 3. `/commit` — aprove a mensagem de commit semântico
+
+Para revisão de segurança isolada em código existente:
+
+```
+/security-review [arquivo(s) ou diff]
+```
+
+Para verificar o estado de todas as features em andamento:
+
+```
+/spec-status
+```
 
 ---
 
