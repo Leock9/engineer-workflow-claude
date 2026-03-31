@@ -1012,7 +1012,7 @@
   <!-- ─── SLIDE 3: ARQUITETURA ─── -->
   <div class="slide" id="s3">
     <div class="eyebrow">arquitetura</div>
-    <h2>15 agentes. <span class="hl2">10 comandos.</span></h2>
+    <h2>21 agentes. <span class="hl2">13 comandos.</span></h2>
     <div class="arch-diagram">
       <div class="arch-row">
         <div class="arch-node user">👤 Dev</div>
@@ -1024,6 +1024,8 @@
           <div class="arch-group-label">⚡ Haiku — Estrutural / Rápido</div>
           <div class="agent-pills">
             <span class="pill haiku">Detector</span>
+            <span class="pill haiku">CodeExplorer</span>
+            <span class="pill haiku">EvidenceParser</span>
             <span class="pill haiku">LogClassifier</span>
             <span class="pill haiku">ReviewCoordinator</span>
           </div>
@@ -1032,6 +1034,7 @@
           <div class="arch-group-label">🧠 Sonnet — Análise / Código</div>
           <div class="agent-pills">
             <span class="pill sonnet">Architect</span>
+            <span class="pill sonnet">DiscoverySynthesizer</span>
             <span class="pill sonnet">Implementer</span>
             <span class="pill sonnet">Reviewer</span>
             <span class="pill sonnet">PerformanceReviewer</span>
@@ -1041,8 +1044,12 @@
             <span class="pill sonnet">ADRWriter</span>
             <span class="pill sonnet">OpenAPIWriter</span>
             <span class="pill sonnet">SpecWriter</span>
+            <span class="pill sonnet">PlanWriter</span>
             <span class="pill sonnet">Tracer</span>
             <span class="pill sonnet">Explainer</span>
+            <span class="pill sonnet">EvidenceAnalyzer</span>
+            <span class="pill sonnet">EvidenceReportWriter</span>
+            <span class="pill sonnet">DocSyncer</span>
           </div>
         </div>
       </div>
@@ -1057,7 +1064,7 @@
   <!-- ─── SLIDE 4: COMANDOS ─── -->
   <div class="slide" id="s4">
     <div class="eyebrow">comandos</div>
-    <h2>10 comandos. <span class="hl">Cada um tem seu papel.</span></h2>
+    <h2>13 comandos. <span class="hl">Cada um tem seu papel.</span></h2>
     <div class="commands-grid">
       <div class="cmd-card">
         <div class="cmd-name">/coordinator</div>
@@ -1107,6 +1114,21 @@
       <div class="cmd-card">
         <div class="cmd-name">/openapi</div>
         <div class="cmd-desc">Gera ou atualiza OpenAPI 3.0 a partir dos handlers HTTP — infere schemas, parâmetros e auth sem tocar no código</div>
+        <span class="cmd-tag util">documentação</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/discovery</div>
+        <div class="cmd-desc">Explora o codebase relevante a uma tarefa e produz relatório com modelo de domínio, gaps e constraints</div>
+        <span class="cmd-tag prep">pré-código</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/evidence</div>
+        <div class="cmd-desc">Valida logs de testes contra spec e plano aprovados; gera documento formal de evidências com cobertura por seção</div>
+        <span class="cmd-tag util">qualidade</span>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-name">/sync-docs</div>
+        <div class="cmd-desc">Sincroniza o README do repositório de documentação com o inventário atual de agentes e comandos</div>
         <span class="cmd-tag util">documentação</span>
       </div>
     </div>
@@ -1169,8 +1191,17 @@
       </thead>
       <tbody>
         <tr><td>Detector</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Identifica linguagem, runtime e convenções</td></tr>
+        <tr><td>CodeExplorer</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Enumera arquivos e símbolos relevantes — sem síntese, apenas inventário</td></tr>
+        <tr><td>EvidenceParser</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Extrai sinais estruturados de logs de testes</td></tr>
+        <tr><td>LogClassifier</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Extrai estrutura objetiva de logs brutos</td></tr>
+        <tr><td>ReviewCoordinator</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Consolida até 6 revisores, deduplica</td></tr>
         <tr><td>Architect</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Tradeoffs arquiteturais — design, review, trace</td></tr>
+        <tr><td>DiscoverySynthesizer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Mapeia modelo de domínio, gaps e constraints a partir do CodeExplorer</td></tr>
+        <tr><td>DocSyncer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Reescreve seções do README de documentação com inventário atual</td></tr>
+        <tr><td>EvidenceAnalyzer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Mapeia evidências para uma seção da spec — chamado 3× em paralelo</td></tr>
+        <tr><td>EvidenceReportWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Consolida as três análises paralelas em documento formal de evidências</td></tr>
         <tr><td>SpecWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Especificação formal em Gherkin</td></tr>
+        <tr><td>PlanWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Plano de implementação após aprovação da spec — o "como"</td></tr>
         <tr><td>Implementer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Código conforme spec aprovada</td></tr>
         <tr><td>Reviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">DRY, KISS, Clean Code</td></tr>
         <tr><td>PerformanceReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">O(n²), N+1, memory leaks</td></tr>
@@ -1179,7 +1210,6 @@
         <tr><td>SecurityReviewer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">HTTP, DB e third-party — OWASP API Top 10 + CWE</td></tr>
         <tr><td>ADRWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Gera Architecture Decision Records em /docs/adr/</td></tr>
         <tr><td>OpenAPIWriter</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Infere OpenAPI 3.0 de handlers HTTP — merge seguro</td></tr>
-        <tr><td>ReviewCoordinator</td><td><span class="badge-model haiku">Haiku</span></td><td style="color:var(--muted)">Consolida até 6 revisores, deduplica</td></tr>
         <tr><td>Tracer + Explainer</td><td><span class="badge-model sonnet">Sonnet</span></td><td style="color:var(--muted)">Call chain + veredito diagnóstico</td></tr>
       </tbody>
     </table>
@@ -1288,7 +1318,7 @@
         </div>
         <div class="token-item">
           <div class="token-item-title" style="color:var(--accent);">Haiku onde Haiku basta</div>
-          <div class="token-item-desc">3 de 13 agentes rodam em Haiku — <strong style="color:var(--accent);">~60–80% de redução de custo</strong> nessas chamadas específicas</div>
+          <div class="token-item-desc">5 de 21 agentes rodam em Haiku — <strong style="color:var(--accent);">~60–80% de redução de custo</strong> nessas chamadas específicas</div>
           <div class="token-bar low"></div>
         </div>
         <div class="token-item">
@@ -1318,7 +1348,7 @@
         <div class="bp-icon">⚡</div>
         <div>
           <h4>Haiku para o estrutural</h4>
-          <p>Detector, LogClassifier e ReviewCoordinator usam Haiku — tarefas de classificação e síntese não precisam de Sonnet.</p>
+          <p>Detector, CodeExplorer, EvidenceParser, LogClassifier e ReviewCoordinator usam Haiku — tarefas de classificação e inventário não precisam de Sonnet.</p>
           <span class="bp-tag">model routing</span>
         </div>
       </div>
@@ -1435,11 +1465,11 @@
     <h1>Escreva <span class="hl">menos.</span><br>Revise <span class="hl2">mais.</span><br>Construa <span class="hl3">certo.</span></h1>
     <div class="big-stat">
       <div class="stat">
-        <div class="stat-num hl">15</div>
+        <div class="stat-num hl">21</div>
         <div class="stat-label">agentes</div>
       </div>
       <div class="stat">
-        <div class="stat-num hl2">10</div>
+        <div class="stat-num hl2">13</div>
         <div class="stat-label">comandos</div>
       </div>
       <div class="stat">

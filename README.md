@@ -19,18 +19,21 @@ Isto não é um framework e não substitui o desenvolvedor. É uma camada de pro
 
 ## Arquitetura
 
-O sistema é composto por **15 subagentes especializados** orquestrados por **10 comandos**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
+O sistema é composto por **21 subagentes especializados** orquestrados por **13 comandos**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
 
 ```mermaid
 graph TD
     subgraph Haiku["⚡ Haiku — Estrutural / Rápido"]
         D[Detector]
+        CE[CodeExplorer]
+        EP[EvidenceParser]
         LC[LogClassifier]
         RC[ReviewCoordinator]
     end
 
     subgraph Sonnet["🧠 Sonnet — Análise / Código"]
         A[Architect]
+        DS[DiscoverySynthesizer]
         I[Implementer]
         RV[Reviewer]
         PR[PerformanceReviewer]
@@ -40,8 +43,12 @@ graph TD
         AW[ADRWriter]
         OW[OpenAPIWriter]
         SW[SpecWriter]
+        PW[PlanWriter]
         T[Tracer]
         E[Explainer]
+        EA[EvidenceAnalyzer]
+        ERW[EvidenceReportWriter]
+        DocS[DocSyncer]
     end
 
     User -->|comando| Orchestrator
@@ -109,9 +116,24 @@ Executado antes do `/coordinator`. Gera uma especificação formal e um plano de
 2. **Perguntas abertas** — 5 perguntas estruturadas são levantadas (comportamento em falha, idempotência, transições de estado, contratos, decisões diferidas) → **STOP, aguarda respostas**
 3. **Análise arquitetural** — Architect avalia opções em modo refinement
 4. **Escrita da spec** — SpecWriter produz `/specs/[slug].md` com status `draft` → **STOP, aguarda aprovação**
-5. **Síntese do plano** — Plano de implementação gerado (≤ 80 linhas)
+5. **Síntese do plano** — PlanWriter gera plano de implementação
 
 **Saída:** `/specs/[slug].md` (draft → aprovada) + plano de implementação.
+
+---
+
+### `/discovery` — Exploração do codebase existente
+
+Explora o codebase relevante a uma tarefa e produz um relatório de discovery antes de qualquer decisão arquitetural ou implementação.
+
+**Entrada:** Descrição da tarefa ou área de interesse.
+
+**Fluxo:**
+1. **Detecção** — Detector identifica o stack
+2. **Inventário** — CodeExplorer enumera arquivos, módulos e símbolos relevantes
+3. **Síntese** — DiscoverySynthesizer mapeia modelo de domínio, gaps e constraints
+
+**Saída:** Relatório de discovery em `.claude/discovery/[slug].md` com modelo de domínio, gaps identificados e constraints relevantes.
 
 ---
 
@@ -161,6 +183,23 @@ Revisa código com foco exclusivo em segurança, sem acionar os demais revisores
 3. Relatório entregue em português com referências OWASP API Security Top 10 (2023) e CWE por finding
 
 **Saída:** Relatório de segurança com findings categorizados por severidade (🔴 Blocker / 🟡 Importante / 🟢 Sugestão) e nível de confiança [HIGH/MEDIUM/LOW].
+
+---
+
+### `/evidence` — Validação de evidências de teste
+
+Valida logs de execução de testes contra a spec e o plano aprovados, gerando um documento formal de evidências.
+
+**Entrada:** Logs brutos de execução de testes + slug da spec.
+
+**Fluxo:**
+1. **EvidenceParser** — processa logs brutos extraindo sinais estruturados (em segmentos se > 200 linhas)
+2. Carrega spec e plano aprovados de `/specs/`
+3. **Paralelo (3×)** — EvidenceAnalyzer mapeia evidências para: cenários / invariantes+contratos / NFR+plano
+4. **EvidenceReportWriter** — consolida as três análises paralelas em documento final
+5. Apresenta resultado ao usuário
+
+**Saída:** Documento de evidências em `.claude/evidence/[slug]-[YYYY-MM-DD].md` com cobertura por seção da spec.
 
 ---
 
@@ -232,25 +271,59 @@ Gera ou atualiza uma especificação OpenAPI 3.0 a partir dos handlers HTTP exis
 
 ---
 
+### `/sync-docs` — Sincronização do README de documentação
+
+Sincroniza o README do repositório de documentação com o inventário atual de agentes e comandos.
+
+**Entrada:** Nenhuma (lê `.claude/agents/*.md` e `.claude/commands/*.md` automaticamente).
+
+**Fluxo:**
+1. Lê todos os arquivos em `.claude/agents/` — monta inventário de agentes
+2. Lê todos os arquivos em `.claude/commands/` — monta inventário de comandos
+3. Lê o README atual do repositório de documentação
+4. DocSyncer reescreve as seções desatualizadas (Arquitetura, Comandos, Referência de Agentes)
+5. Escreve o README atualizado e reporta as alterações
+
+**Saída:** README atualizado com contagens, diagrama e tabelas refletindo o estado atual do workflow.
+
+---
+
+### `/usage` — Análise de consumo de tokens
+
+**Entrada:** `.claude/usage.log` (gerado automaticamente pelo hook de observabilidade).
+
+**Fluxo:** Lê o log → parseia linhas no formato `TIMESTAMP | COMMAND | AGENT | in:N | out:N | cost:$N` → calcula consumo por agente e por comando → identifica gargalos → emite recomendação.
+
+**Saída:** Tabela de consumo por agente e por comando + diagnóstico de gargalos + recomendação principal.
+
+---
+
 ## Referência de Agentes
 
 | Agente | Modelo | Responsabilidade | Entrada | Saída |
 |--------|--------|------------------|---------|-------|
 | **Detector** | Haiku | Identifica linguagem, versão do runtime, bibliotecas principais e convenções do projeto | Manifests (`package.json`, `go.mod`, etc.) | Resumo do stack (≤ 20 linhas) |
-| **Architect** | Sonnet | Avalia tradeoffs arquiteturais em três modos: design, review, trace | Resumo do stack + descrição da tarefa | Opções com riscos e avaliação de complexidade |
-| **SpecWriter** | Sonnet | Produz uma especificação formal em Gherkin com cenários, invariantes e contratos de output | Tarefa + stack + decisão arquitetural + respostas do dev | `/specs/[slug].md` (status: draft → aprovada) |
-| **Implementer** | Sonnet | Escreve código de acordo com a spec aprovada e a decisão arquitetural | Stack + arquitetura + spec aprovada | Código + relatório de conformidade à spec |
-| **Reviewer** | Sonnet | Valida DRY, KISS e Clean Code — não SOLID | Diff ou arquivos modificados | Violações categorizadas por severidade |
-| **PerformanceReviewer** | Sonnet | Detecta problemas de performance (O(n²), queries N+1, memory leaks, etc.) | Diff/código + resumo do stack | Problemas com níveis de confiança |
-| **TestReviewer** | Sonnet | Valida qualidade dos testes: cobertura, ghost tests, acoplamento comportamento vs. implementação | Testes + código modificado | Análise de cobertura e qualidade |
-| **SpecReviewer** | Sonnet | Valida conformidade da implementação com a spec: cenários, invariantes, contratos | Spec aprovada + código implementado | Relatório de conformidade por elemento da spec |
-| **SecurityReviewer** | Sonnet | Analisa vulnerabilidades de segurança em três vetores: endpoints HTTP, acesso a banco de dados e integrações com serviços terceiros — agnóstico de stack, baseado no OWASP API Security Top 10 (2023) e CWEs relevantes | Diff/arquivos + resumo do stack | Findings por vetor com severidade, referência OWASP/CWE e remediação |
-| **ADRWriter** | Sonnet | Gera Architecture Decision Records com contexto, opções, decisão e consequências; auto-incrementa o ID lendo `/docs/adr/` | Contexto da decisão + opções + escolha | `/docs/adr/NNNN-slug.md` |
-| **OpenAPIWriter** | Sonnet | Infere paths, schemas, parâmetros e auth a partir de handlers HTTP — agnóstico de framework; merge seguro se spec já existe | Handlers + resumo do stack | YAML OpenAPI 3.0 |
-| **ReviewCoordinator** | Haiku | Consolida até 6 outputs de revisores em um único relatório deduplicado | Até 6 outputs de revisores | Relatório unificado com findings priorizados |
+| **CodeExplorer** | Haiku | Enumera arquivos, módulos e símbolos relevantes a uma tarefa — sem síntese, apenas inventário | Descrição da tarefa + estrutura do projeto | Lista de arquivos e símbolos relevantes |
+| **EvidenceParser** | Haiku | Extrai sinais estruturados de logs de execução de testes — sem análise, apenas extração | Logs brutos de testes (processado em segmentos se > 200 linhas) | Sinais estruturados de teste (passes, failures, erros) |
 | **LogClassifier** | Haiku | Extrai estrutura objetiva de logs brutos (tipo de erro, tokens do stack, contexto da requisição) | Log bruto ou stack trace | Log estruturado (≤ 12 linhas) |
-| **Tracer** | Sonnet | Reconstrói a sequência de execução de código que produziu um log | Log classificado + stack + candidatos de entry point | Call chain com nível de confiança |
+| **ReviewCoordinator** | Haiku | Consolida até 6 outputs de revisores em um único relatório deduplicado | Até 6 outputs de revisores | Relatório unificado com findings priorizados |
+| **Architect** | Sonnet | Avalia tradeoffs arquiteturais em três modos: design, review, trace | Resumo do stack + descrição da tarefa | Opções com riscos e avaliação de complexidade |
+| **DiscoverySynthesizer** | Sonnet | Sintetiza relatório de discovery a partir do inventário do CodeExplorer; mapeia modelo de domínio, gaps e constraints | Inventário do CodeExplorer + resumo do stack | Relatório de discovery com modelo de domínio, gaps e constraints |
+| **DocSyncer** | Sonnet | Reescreve seções do README de documentação com base no inventário atual de agentes e comandos | Inventário de agentes e comandos + README atual | README atualizado |
+| **EvidenceAnalyzer** | Sonnet | Mapeia evidências de teste para uma seção da spec (cenários, invariantes/contratos ou NFR/plano) — chamado 3× em paralelo | Sinais estruturados + seção da spec correspondente | Análise de cobertura para a seção |
+| **EvidenceReportWriter** | Sonnet | Consolida as três saídas paralelas do EvidenceAnalyzer em documento final de evidências | Três análises do EvidenceAnalyzer | Documento formal de evidências |
 | **Explainer** | Sonnet | Traduz um trace técnico em narrativa legível e veredito diagnóstico | Trace + log original + stack | Narrativa + veredito |
+| **Implementer** | Sonnet | Escreve código de acordo com a spec aprovada e a decisão arquitetural | Stack + arquitetura + spec aprovada | Código + relatório de conformidade à spec |
+| **OpenAPIWriter** | Sonnet | Infere paths, schemas, parâmetros e auth a partir de handlers HTTP — agnóstico de framework; merge seguro se spec já existe | Handlers + resumo do stack | YAML OpenAPI 3.0 |
+| **PerformanceReviewer** | Sonnet | Detecta problemas de performance (O(n²), queries N+1, memory leaks, etc.) | Diff/código + resumo do stack | Problemas com níveis de confiança |
+| **PlanWriter** | Sonnet | Escreve planos de implementação após aprovação da spec — o "como", complementar ao spec que é o "o quê" | Spec aprovada + decisão arquitetural | Plano de implementação (≤ 80 linhas) |
+| **Reviewer** | Sonnet | Valida DRY, KISS e Clean Code — não SOLID | Diff ou arquivos modificados | Violações categorizadas por severidade |
+| **SecurityReviewer** | Sonnet | Analisa vulnerabilidades de segurança em três vetores: endpoints HTTP, acesso a banco de dados e integrações com serviços terceiros — agnóstico de stack, baseado no OWASP API Security Top 10 (2023) e CWEs relevantes | Diff/arquivos + resumo do stack | Findings por vetor com severidade, referência OWASP/CWE e remediação |
+| **SpecReviewer** | Sonnet | Valida conformidade da implementação com a spec: cenários, invariantes, contratos | Spec aprovada + código implementado | Relatório de conformidade por elemento da spec |
+| **SpecWriter** | Sonnet | Produz uma especificação formal em Gherkin com cenários, invariantes e contratos de output | Tarefa + stack + decisão arquitetural + respostas do dev | `/specs/[slug].md` (status: draft → aprovada) |
+| **TestReviewer** | Sonnet | Valida qualidade dos testes: cobertura, ghost tests, acoplamento comportamento vs. implementação | Testes + código modificado | Análise de cobertura e qualidade |
+| **Tracer** | Sonnet | Reconstrói a sequência de execução de código que produziu um log | Log classificado + stack + candidatos de entry point | Call chain com nível de confiança |
+| **ADRWriter** | Sonnet | Gera Architecture Decision Records com contexto, opções, decisão e consequências; auto-incrementa o ID lendo `/docs/adr/` | Contexto da decisão + opções + escolha | `/docs/adr/NNNN-slug.md` |
 
 ---
 
