@@ -13,13 +13,13 @@ Este projeto implementa um **pipeline de agentes orquestrado** sobre o Claude Co
 
 O workflow impõe uma **disciplina spec-first**: nenhum código é escrito até que uma decisão arquitetural e uma especificação formal tenham sido revisadas e aprovadas pelo desenvolvedor. Isso cria um gate humano no loop que impede construir a coisa errada antes que as perguntas certas sejam respondidas.
 
-Isto não é um framework e não substitui o desenvolvedor. É uma camada de processo estruturada — um conjunto de comandos e agentes que trazem ordem, rigor e consistência à forma como o Claude Code é usado em um projeto de software.
+Isto não é um framework e não substitui o desenvolvedor. É uma camada de processo estruturada — um conjunto de skills e agentes que trazem ordem, rigor e consistência à forma como o Claude Code é usado em um projeto de software.
 
 ---
 
 ## Arquitetura
 
-O sistema é composto por **21 subagentes especializados** orquestrados por **13 comandos**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
+O sistema é composto por **26 subagentes especializados** orquestrados por **16 skills**. Os agentes são atribuídos a modelos de acordo com a complexidade da tarefa:
 
 ```mermaid
 graph TD
@@ -29,6 +29,7 @@ graph TD
         EP[EvidenceParser]
         LC[LogClassifier]
         RC[ReviewCoordinator]
+        MV[MdValidator]
     end
 
     subgraph Sonnet["🧠 Sonnet — Análise / Código"]
@@ -44,14 +45,17 @@ graph TD
         OW[OpenAPIWriter]
         SW[SpecWriter]
         PW[PlanWriter]
+        TFW[TestFlowWriter]
         T[Tracer]
         E[Explainer]
         EA[EvidenceAnalyzer]
         ERW[EvidenceReportWriter]
         DocS[DocSyncer]
+        AO[AgentOptimizer]
+        MA[MdAuthor]
     end
 
-    User -->|comando| Orchestrator
+    User -->|skill| Orchestrator
     Orchestrator --> Haiku
     Orchestrator --> Sonnet
     Haiku --> Sonnet
@@ -62,7 +66,7 @@ graph TD
 
 ---
 
-## Comandos
+## Skills
 
 ### `/coordinator` — Ciclo completo de desenvolvimento
 
@@ -273,15 +277,15 @@ Gera ou atualiza uma especificação OpenAPI 3.0 a partir dos handlers HTTP exis
 
 ### `/sync-docs` — Sincronização do README de documentação
 
-Sincroniza o README do repositório de documentação com o inventário atual de agentes e comandos.
+Sincroniza o README do repositório de documentação com o inventário atual de agentes e skills.
 
-**Entrada:** Nenhuma (lê `.claude/agents/*.md` e `.claude/commands/*.md` automaticamente).
+**Entrada:** Nenhuma (lê `.claude/agents/*.md` e `.claude/skills/*/SKILL.md` automaticamente).
 
 **Fluxo:**
 1. Lê todos os arquivos em `.claude/agents/` — monta inventário de agentes
-2. Lê todos os arquivos em `.claude/commands/` — monta inventário de comandos
+2. Lê todos os arquivos em `.claude/skills/*/SKILL.md` — monta inventário de skills
 3. Lê o README atual do repositório de documentação
-4. DocSyncer reescreve as seções desatualizadas (Arquitetura, Comandos, Referência de Agentes)
+4. DocSyncer reescreve as seções desatualizadas (Arquitetura, Skills, Referência de Agentes)
 5. Escreve o README atualizado e reporta as alterações
 
 **Saída:** README atualizado com contagens, diagrama e tabelas refletindo o estado atual do workflow.
@@ -298,6 +302,68 @@ Sincroniza o README do repositório de documentação com o inventário atual de
 
 ---
 
+### `/testflow` — Geração de fluxo de teste E2E
+
+Gera um documento de fluxo de teste end-to-end concreto a partir de uma spec aprovada e seu plano de implementação.
+
+**Entrada:** Slug da spec (ex.: `minha-feature`).
+
+**Fluxo:**
+1. Resolve o slug e valida que a spec e o plano existem em `.claude/specs/`
+2. TestFlowWriter gera o documento de fluxo de teste E2E com cenários concretos e passos de execução
+3. Salva em `.claude/specs/[slug].testflow.md`
+
+**Saída:** `.claude/specs/[slug].testflow.md` com fluxo de teste E2E baseado na spec e no plano aprovados.
+
+---
+
+### `/mr-watch` — Monitoramento de Merge Requests
+
+Monitora MRs abertos no GitLab e notifica sobre novos comentários e threads de diff no terminal.
+
+**Entrada:** Nenhuma (lê `~/.claude/mr-watch-config.json` automaticamente).
+
+**Fluxo:**
+1. Lê arquivo de configuração em `~/.claude/mr-watch-config.json`
+2. Busca MRs abertos no projeto configurado
+3. Faz polling indefinido por novos comentários e threads de diff — **Ctrl+C para encerrar**
+
+**Saída:** Notificações em tempo real no terminal para novos comentários e threads em MRs abertos.
+
+---
+
+### `/agent-optimizer` — Auditoria de agentes e skills
+
+Audita todos os agentes e skills para conformidade com output limits, input contracts, context-passing discipline e SDD.
+
+**Entrada:** Nenhuma (lê `.claude/agents/*.md` e `.claude/skills/*/SKILL.md` automaticamente).
+
+**Fluxo:**
+1. Busca documentação Anthropic em paralelo
+2. Monta inventário estruturado de todos os agentes e skills
+3. AgentOptimizer executa auditoria e produz relatório em `.claude/discovery/`
+
+**Saída:** Relatório de auditoria em `.claude/discovery/` com findings categorizados por tipo de violação.
+
+---
+
+### `/workflow-coordinator` — Criação e edição de artefatos de workflow
+
+Cria ou atualiza um arquivo de agente, skill ou hook Go a partir de uma spec aprovada.
+
+**Entrada:** Spec aprovada descrevendo o artefato a criar ou modificar.
+
+**Fluxo:**
+1. **Spec Gate** — bloqueia se não houver spec aprovada
+2. Identifica o tipo de artefato (agente, skill, hook Go) e os caminhos de destino
+3. MdAuthor cria ou edita cada artefato
+4. MdValidator valida cada artefato contra o Convention Contract
+5. Escreve os arquivos e sincroniza o registry
+
+**Saída:** Artefato(s) criado(s) ou atualizado(s) + validação de conformidade com o Convention Contract.
+
+---
+
 ## Referência de Agentes
 
 | Agente | Modelo | Responsabilidade | Entrada | Saída |
@@ -309,7 +375,7 @@ Sincroniza o README do repositório de documentação com o inventário atual de
 | **ReviewCoordinator** | Haiku | Consolida até 6 outputs de revisores em um único relatório deduplicado | Até 6 outputs de revisores | Relatório unificado com findings priorizados |
 | **Architect** | Sonnet | Avalia tradeoffs arquiteturais em três modos: design, review, trace | Resumo do stack + descrição da tarefa | Opções com riscos e avaliação de complexidade |
 | **DiscoverySynthesizer** | Sonnet | Sintetiza relatório de discovery a partir do inventário do CodeExplorer; mapeia modelo de domínio, gaps e constraints | Inventário do CodeExplorer + resumo do stack | Relatório de discovery com modelo de domínio, gaps e constraints |
-| **DocSyncer** | Sonnet | Reescreve seções do README de documentação com base no inventário atual de agentes e comandos | Inventário de agentes e comandos + README atual | README atualizado |
+| **DocSyncer** | Sonnet | Reescreve seções do README de documentação com base no inventário atual de agentes e skills | Inventário de agentes e skills + README atual | README atualizado |
 | **EvidenceAnalyzer** | Sonnet | Mapeia evidências de teste para uma seção da spec (cenários, invariantes/contratos ou NFR/plano) — chamado 3× em paralelo | Sinais estruturados + seção da spec correspondente | Análise de cobertura para a seção |
 | **EvidenceReportWriter** | Sonnet | Consolida as três saídas paralelas do EvidenceAnalyzer em documento final de evidências | Três análises do EvidenceAnalyzer | Documento formal de evidências |
 | **Explainer** | Sonnet | Traduz um trace técnico em narrativa legível e veredito diagnóstico | Trace + log original + stack | Narrativa + veredito |
@@ -324,6 +390,10 @@ Sincroniza o README do repositório de documentação com o inventário atual de
 | **TestReviewer** | Sonnet | Valida qualidade dos testes: cobertura, ghost tests, acoplamento comportamento vs. implementação | Testes + código modificado | Análise de cobertura e qualidade |
 | **Tracer** | Sonnet | Reconstrói a sequência de execução de código que produziu um log | Log classificado + stack + candidatos de entry point | Call chain com nível de confiança |
 | **ADRWriter** | Sonnet | Gera Architecture Decision Records com contexto, opções, decisão e consequências; auto-incrementa o ID lendo `/docs/adr/` | Contexto da decisão + opções + escolha | `/docs/adr/NNNN-slug.md` |
+| **AgentOptimizer** | Sonnet | Audita agentes e skills para output limits, input contracts, context-passing discipline e conformidade com SDD | Inventário de agentes e skills + documentação Anthropic | Relatório de auditoria com findings categorizados |
+| **MdAuthor** | Sonnet | Cria ou edita arquivos markdown de agentes e skills a partir de uma spec aprovada, aplicando o Convention Contract | Spec aprovada + conteúdo atual do arquivo (se edição) | Arquivo markdown criado ou atualizado |
+| **MdValidator** | Haiku | Valida um artefato markdown contra as sete regras do Convention Contract — retorna pass/fail com detalhes das violações | Arquivo markdown | Resultado pass/fail com lista de violações |
+| **TestFlowWriter** | Sonnet | Gera documento de fluxo de teste E2E concreto a partir de uma spec aprovada e seu plano de implementação | Spec aprovada + plano de implementação | `.claude/specs/[slug].testflow.md` |
 
 ---
 
@@ -387,7 +457,7 @@ curl -sO https://raw.githubusercontent.com/Leock9/flow-copilot/main/.claude/setu
 bash setup-claude.sh
 ```
 
-O script de setup copia `CLAUDE.md`, `agents/` e `commands/` para o diretório `.claude/` do projeto — o local que o Claude Code lê para instruções no nível do projeto.
+O script de setup copia `CLAUDE.md`, `agents/` e `skills/` para o diretório `.claude/` do projeto — o local que o Claude Code lê para instruções no nível do projeto.
 
 ### Requisitos
 
